@@ -75,13 +75,14 @@ A user needs a password that excludes symbols (e.g., for a system that does not 
 - **FR-004**: The tool MUST accept a `--no-symbols` flag to exclude special/symbol characters from the generated password.
 - **FR-005**: The tool MUST accept a `--no-numbers` flag to exclude numeric characters from the generated password.
 - **FR-006**: The tool MUST include both symbols and numbers in generated passwords by default (opt-out model).
-- **FR-007**: The tool MUST always include at least lowercase and uppercase letters in any generated password.
+- **FR-007**: The tool MUST always include at least lowercase and uppercase letters in any generated password. Additionally, every other enabled character set (numbers, symbols) MUST each contribute at least one character to the generated password. Remaining positions are filled from the combined pool of enabled sets, then the full password is shuffled using a cryptographically secure shuffle.
 - **FR-008**: The tool MUST use a cryptographically secure random source to generate passwords.
 - **FR-009**: The tool MUST automatically copy the generated password to the system clipboard after generation. If the clipboard is unavailable, the tool MUST display a warning message but still print the password to the terminal and exit successfully.
-- **FR-010**: The tool MUST display the generated password in the terminal output.
-- **FR-011**: The tool MUST display a confirmation message in the terminal confirming the password was copied to the clipboard.
-- **FR-012**: The tool MUST display a clear, human-readable error message when invalid arguments are provided, and exit without generating a password.
+- **FR-010**: The tool MUST write the generated password to `stdout`. All other output (confirmation messages, warnings, errors) MUST be written to `stderr`. This enables composable use (e.g., `passgen | xclip`).
+- **FR-011**: The tool MUST write a confirmation message to `stderr` confirming the password was copied to the clipboard.
+- **FR-012**: The tool MUST write a clear, human-readable error message to `stderr` when invalid arguments are provided, and exit without generating a password.
 - **FR-013**: The tool MUST provide a `--help` flag that describes available arguments and their defaults.
+- **FR-014**: The tool MUST exit with the following codes: `0` — password generated and copied to clipboard successfully; `1` — invalid or out-of-range arguments (no password generated); `2` — password generated and printed, but clipboard copy failed.
 
 ### Key Entities
 
@@ -107,3 +108,18 @@ A user needs a password that excludes symbols (e.g., for a system that does not 
 - The tool targets developer and power-user audiences comfortable with a terminal interface.
 - A single password is generated per invocation; batch generation is out of scope.
 - The tool does not store, log, or transmit generated passwords anywhere other than the terminal output and clipboard.
+
+## Constraints & Tradeoffs
+
+- **Implementation language**: Python. Uses the standard `secrets` module to satisfy FR-008 (cryptographically secure randomness). Cross-platform clipboard access via the `pyperclip` library to satisfy SC-005.
+- **Distribution format**: Installable Python package using `pyproject.toml`. After `pip install`, the tool is invocable as `passgen` via a declared entry point. Python 3.8+ is the minimum required runtime.
+
+## Clarifications
+
+### Session 2026-02-18
+
+- Q: What programming language/runtime should be used to implement the CLI tool? → A: Python (using `secrets` for cryptographic randomness and `pyperclip` for clipboard)
+- Q: Must every enabled character set contribute at least one character to the generated password? → A: Yes — guaranteed minimum one character per enabled set; remaining positions filled from combined pool, then shuffled securely
+- Q: Should the password and status messages use separate output streams? → A: Yes — password to `stdout`, all other messages (confirmation, warnings, errors) to `stderr`
+- Q: What exit codes should the tool use? → A: `0` full success, `1` invalid/out-of-range arguments, `2` clipboard failure (password still printed to stdout)
+- Q: How should the tool be distributed and invoked? → A: Installable Python package (`pyproject.toml` + entry point); invoked as `passgen` after `pip install`
